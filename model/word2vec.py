@@ -14,7 +14,7 @@ class CBOW(nn.Module):
         self.vocab_size = vocab_size
         self.max_len = max_len
 
-        self.embedding = nn.Embedding(self.vocab_size, self.projection_layer, padding_idx= 0)
+        self.embedding = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx= self.vocab_size)
         self.linear = nn.Linear(self.projection_layer, self.vocab_size)
 
 
@@ -49,7 +49,8 @@ class skip_gram(nn.Module):
         self.projection_layer = projection_layer
         self.max_len = max_len
 
-        self.embedding = nn.Embedding(self.vocab_size, self.projection_layer)
+        #padding data --> idx = 0 : embed size 가 vocab size + 1 이여야 됨
+        self.embedding = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx= self.vocab_size)
         self.linear = nn.Linear(self.projection_layer, vocab_size)
 
     def forward(self, x):
@@ -57,12 +58,12 @@ class skip_gram(nn.Module):
         x = (N,1,V) : (N,1)
         out = (N,C,V)
         '''
-        #(N,1)
+        #(N,D)
         out = self.embedding(x)
-        #(1,V)
+        #(N,V)
         out = self.linear(out)
         #out = F.log_softmax(out, dim = 1)
-        out = F.softmax(out, dim = 1)
+        #out = F.softmax(out, dim = 1)
 
         return out
         
@@ -74,7 +75,7 @@ class skip_gram_with_Hierarchy(nn.Module):
         self.projection_layer = projection_layer
         self.max_len = max_len
 
-        self.embedding_1 = nn.Embedding(self.vocab_size, self.projection_layer)
+        self.embedding_1 = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx = self.vocab_size)
         
         self.embedding_2 = nn.Embedding(self.vocab_size - 1, self.projection_layer)
 
