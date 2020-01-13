@@ -62,15 +62,12 @@ def corpus_making(path, batch = 500000, save = True, load = False):
 def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, load = False):
 
     word2idx = word2idx
-    train_set_words = []
     train_set_idx = []
     batch = batch
 
 
     if load:
 
-        with open("./trunk/train_set_words.pickle", 'rb') as f:
-            train_set_words = pickle.load(f)
         with open("./trunk/train_set_idx.pickle", 'rb') as f:
             train_set_idx = pickle.load(f)
 
@@ -88,28 +85,28 @@ def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, lo
                 if temp == "":
                     break
                 temp = temp.split(" ")
-                
+                train_set = []
+                #change words to index
+                for word in temp:
+                    train_set += [word2idx[word][0]]
+
                 for i, idx in enumerate(range(max_distance, len(temp) - max_distance + 1)):
-                    #train_set_words : [R-C : R : R+C] X N
-                    train_set_words_temp = np.array(temp[i:idx + max_distance + 1])
-                    train_set_words.append(train_set_words_temp)
-                    train_set_idx_temp = []
-                    for word in train_set_words_temp:
-                        train_set_idx_temp += [word2idx[word][0]]
-                    
+                    #train_set_idx : [R-C : R : R+C] X N
+                    train_set_idx_temp = train_set[i:idx + max_distance + 1]
                     #train_set_idx 마지막 부분이 짤리는 것을 대비하여 0 으로 패딩
                     if (len(train_set_idx_temp) != (2*max_distance + 1)):
                         for i in range(2*max_distance + 1 - len(train_set_idx_temp)):
+                            #print(len(word2idx))
                             train_set_idx_temp += [len(word2idx)]
                     train_set_idx.append(train_set_idx_temp)
 
     if save:
-        with open("./trunk/train_set_words.pickle", 'wb') as f:
-            pickle.dump(train_set_words, f, protocol = pickle.HIGHEST_PROTOCOL)
         with open("./trunk/train_set_idx.pickle", 'wb') as f:
             pickle.dump(train_set_idx, f, protocol = pickle.HIGHEST_PROTOCOL)
 
-    return train_set_idx
+    return np.array(train_set_idx)
+
+
 
 def _Huffman_Tree(word2idx):
     vocab_size = len(word2idx)
@@ -166,7 +163,7 @@ class Unigram_Sampler:
 
     def sampling(self, word_idx, sample_size):
         '''
-        input:
+        input :
                 word_idx (1 , 2C)
                 sample_size = 2C
         output:
@@ -189,4 +186,58 @@ class HuffmanTree:
         self.node = HuffmanNode()
         self.word2idx = word2idx
         self.idx2word = idx2word
+'''
+
+'''
+def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, load = False):
+
+    word2idx = word2idx
+    train_set_words = []
+    train_set_idx = []
+    batch = batch
+
+
+    if load:
+
+        with open("./trunk/train_set_words.pickle", 'rb') as f:
+            train_set_words = pickle.load(f)
+        with open("./trunk/train_set_idx.pickle", 'rb') as f:
+            train_set_idx = pickle.load(f)
+
+
+    else:
+
+        with open(path,'r') as p:
+            for line in p:
+                total_len = len(line)
+
+        with open(path, 'r') as p:
+            #while p.readline(1) != "":
+            for i in tqdm(range(total_len//batch), desc = "Making Train_set"):
+                temp = p.readline(batch)
+                if temp == "":
+                    break
+                temp = temp.split(" ")
+                
+                for i, idx in enumerate(range(max_distance, len(temp) - max_distance + 1)):
+                    #train_set_words : [R-C : R : R+C] X N
+                    train_set_words_temp = np.array(temp[i:idx + max_distance + 1])
+                    train_set_words.append(train_set_words_temp)
+                    train_set_idx_temp = []
+                    for word in train_set_words_temp:
+                        train_set_idx_temp += [word2idx[word][0]]
+                    
+                    #train_set_idx 마지막 부분이 짤리는 것을 대비하여 0 으로 패딩
+                    if (len(train_set_idx_temp) != (2*max_distance + 1)):
+                        for i in range(2*max_distance + 1 - len(train_set_idx_temp)):
+                            train_set_idx_temp += [len(word2idx)]
+                    train_set_idx.append(train_set_idx_temp)
+
+    if save:
+        with open("./trunk/train_set_words.pickle", 'wb') as f:
+            pickle.dump(train_set_words, f, protocol = pickle.HIGHEST_PROTOCOL)
+        with open("./trunk/train_set_idx.pickle", 'wb') as f:
+            pickle.dump(train_set_idx, f, protocol = pickle.HIGHEST_PROTOCOL)
+
+    return train_set_idx
 '''

@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 
 class CBOW(nn.Module):
-    def __init__(self,vocab_size, projection_layer, max_len):
+    def __init__(self,vocab_size, projection_layer, sample_size):
         super(CBOW, self).__init__()
         '''
         Input : (N,V) one-hot-vectors == words --> embedding
@@ -12,7 +12,7 @@ class CBOW(nn.Module):
         '''
         self.projection_layer = projection_layer
         self.vocab_size = vocab_size
-        self.max_len = max_len
+        self.sample_size = sample_size
 
         self.embedding = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx= self.vocab_size)
         self.linear = nn.Linear(self.projection_layer, self.vocab_size)
@@ -42,12 +42,12 @@ class CBOW(nn.Module):
 
 
 class skip_gram(nn.Module):
-    def __init__(self, vocab_size, projection_layer, max_len):
+    def __init__(self, vocab_size, projection_layer, sample_size):
         super(skip_gram, self).__init__()
 
         self.vocab_size = vocab_size
         self.projection_layer = projection_layer
-        self.max_len = max_len
+        self.sample_size = sample_size
 
         #padding data --> idx = 0 : embed size 가 vocab size + 1 이여야 됨
         self.embedding = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx= self.vocab_size)
@@ -68,12 +68,12 @@ class skip_gram(nn.Module):
         return out
         
 class skip_gram_with_Hierarchy(nn.Module):
-    def __init__(self, vocab_size, projection_layer, max_len, max_depth):
+    def __init__(self, vocab_size, projection_layer, sample_size, max_depth):
         super(skip_gram_with_Hierarchy, self).__init__()
 
         self.vocab_size = vocab_size
         self.projection_layer = projection_layer
-        self.max_len = max_len
+        self.sample_size = sample_size
 
         self.embedding_1 = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx = self.vocab_size)
         
