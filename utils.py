@@ -25,9 +25,6 @@ def corpus_making(path, batch = 500000, save = True, load = False):
             for line in p:
                 total_len = len(line)
         
-        print(total_len)
-
-        total_word_len = 0
         with open(path, 'r') as p:
             #while p.readline(1) != "":
             for i in tqdm(range(total_len//batch), desc = "MAKING CORPUS"):
@@ -36,7 +33,7 @@ def corpus_making(path, batch = 500000, save = True, load = False):
                 if temp == "":
                     break
                 temp = temp.split(" ")
-                total_word_len += len(temp)
+
                 for word in temp:
                     #print(word)
                     if word2idx.get(word) is None:
@@ -56,8 +53,27 @@ def corpus_making(path, batch = 500000, save = True, load = False):
         with open("./trunk/idx2word.pickle", 'wb') as f:
             pickle.dump(idx2word, f, protocol = pickle.HIGHEST_PROTOCOL)
 
-    return word2idx, idx2word, total_word_len
+    return word2idx, idx2word
 
+def delete_low_freq(word2idx, idx2word):
+    new_word2idx = dict()
+    new_idx2word = dict()
+
+    length = len(idx2word)
+
+    for i in range(length):
+        temp = idx2word[i]
+        if temp[1] < 6:
+            word2idx.pop(temp[0])
+            idx2word.pop(i)
+
+    i = 0
+    for key, values in word2idx.items():
+        new_word2idx[key] = [i, values[1]]
+        new_idx2word[i] = [key, values[1]]
+        i += 1
+
+    return new_word2idx, new_idx2word
 
 def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, load = False):
 
@@ -87,37 +103,49 @@ def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, lo
                 temp = temp.split(" ")
                 train_set = []
                 #change words to index
+                total_word_len = 0
                 for word in temp:
+                    
+                    if word not in word2idx.keys():
+                        continue
+
                     train_set += [word2idx[word][0]]
+
+                total_word_len += len(train_set)
+
 
                 for i, idx in enumerate(range(max_distance, len(temp) - max_distance + 1)):
                     #train_set_idx : [R-C : R : R+C] X N
-                    train_set_idx_temp = train_set[i:idx + max_distance + 1]
+                    train_set_idx_temp = np.array(train_set[i:idx + max_distance + 1])
                     #train_set_idx 마지막 부분이 짤리는 것을 대비하여 0 으로 패딩
                     if (len(train_set_idx_temp) != (2*max_distance + 1)):
+                        continue
+                        '''
                         for i in range(2*max_distance + 1 - len(train_set_idx_temp)):
                             #print(len(word2idx))
                             train_set_idx_temp += [len(word2idx)]
+                        '''
                     train_set_idx.append(train_set_idx_temp)
 
     if save:
         with open("./trunk/train_set_idx.pickle", 'wb') as f:
             pickle.dump(train_set_idx, f, protocol = pickle.HIGHEST_PROTOCOL)
 
-    return np.array(train_set_idx)
+    return np.array(train_set_idx), total_word_len
 
 
 
 def _Huffman_Tree(word2idx):
     vocab_size = len(word2idx)
     
-    heap = sorted(word2idx.values(), key = lambda items : items[1], reverse= False)
+    #heap = sorted(word2idx.values(), key = lambda items : items[1], reverse= False)
+    heap = [[freq, i] for i,freq in word2idx.values()]
     heapq.heapify(heap)
     for i in tqdm(range(vocab_size - 1), desc = "Huffman_Tree"):
         min1 = heapq.heappop(heap)
         min2 = heapq.heappop(heap)
         
-        heapq.heappush(heap,[i + vocab_size, min1[1] + min2[1], min1, min2])
+        heapq.heappush(heap,[min1[0] + min2[0], i + vocab_size, min1, min2])
         #heap = sorted(heap, key = lambda items : items[1], reverse= False)
         #print(heap)
     
@@ -131,18 +159,22 @@ def _Huffman_Tree(word2idx):
         #print(stack)
         #print(node,direction_path, node_path)
 
-        if node[0] < vocab_size + 1:
+        if node[1] < vocab_size:
             node.append(direction_path)
             node.append(node_path)
             max_depth = max(len(direction_path), max_depth)
             node_stack.append(node)
         else:
             #node_path는 자기 자신 제외 : leaf 노드는 v가 필요 없으니까
-            node_num = node[0] - vocab_size
-            node_path += [node_num]
-            stack.append([node[2], direction_path + [0], node_path])
-            stack.append([node[3], direction_path + [1], node_path])
+            node_num = [node[1] - vocab_size]
+            #node_path = np.array(list(node_path) + node_num)
+            #node_path = list(node_path)
+            #print(node_path)
+            stack.append([node[2], direction_path + [0], node_path + node_num])
+            stack.append([node[3], direction_path + [1], node_path + node_num])
 
+
+    node_stack = sorted(node_stack, key=lambda items: items[1])
     #node_stack
     #[idx, freq, direction path(list), node_path(list)]
     #path들은 서로 길이가 다르기 때문에 추가적으로 padding을 해줘야 할거 같음
@@ -170,74 +202,14 @@ class Unigram_Sampler:
                 unisampled_word_idx (1 * 2C)
         '''
         word_p = self.word_p[word_idx]
-        seed = np.random.choice(len(train_idx), sample_size, p = word_p)
+        seed = np.random.choice(len(word_idx), sample_size, p = word_p)
 
         return word_idx[seed]
-'''
-class HuffmanNode:
-    def __init__(self):
-        self.node = None
-        self.path_by_direction = None
-        self.path_by_node = None
-        self.node_freq = None
 
-class HuffmanTree:
-    def __init__(self, word2idx, idx2word):
-        self.node = HuffmanNode()
-        self.word2idx = word2idx
-        self.idx2word = idx2word
-'''
+if __name__ == "__main__":
+    path = "./data/text8.txt"
+    word2idx , idx2word = corpus_making(path, load= False, batch= 50000)
+    word2idx, idx2word = delete_low_freq(word2idx, idx2word)
+    n, max_ = _Huffman_Tree(word2idx)
 
-'''
-def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, load = False):
-
-    word2idx = word2idx
-    train_set_words = []
-    train_set_idx = []
-    batch = batch
-
-
-    if load:
-
-        with open("./trunk/train_set_words.pickle", 'rb') as f:
-            train_set_words = pickle.load(f)
-        with open("./trunk/train_set_idx.pickle", 'rb') as f:
-            train_set_idx = pickle.load(f)
-
-
-    else:
-
-        with open(path,'r') as p:
-            for line in p:
-                total_len = len(line)
-
-        with open(path, 'r') as p:
-            #while p.readline(1) != "":
-            for i in tqdm(range(total_len//batch), desc = "Making Train_set"):
-                temp = p.readline(batch)
-                if temp == "":
-                    break
-                temp = temp.split(" ")
-                
-                for i, idx in enumerate(range(max_distance, len(temp) - max_distance + 1)):
-                    #train_set_words : [R-C : R : R+C] X N
-                    train_set_words_temp = np.array(temp[i:idx + max_distance + 1])
-                    train_set_words.append(train_set_words_temp)
-                    train_set_idx_temp = []
-                    for word in train_set_words_temp:
-                        train_set_idx_temp += [word2idx[word][0]]
-                    
-                    #train_set_idx 마지막 부분이 짤리는 것을 대비하여 0 으로 패딩
-                    if (len(train_set_idx_temp) != (2*max_distance + 1)):
-                        for i in range(2*max_distance + 1 - len(train_set_idx_temp)):
-                            train_set_idx_temp += [len(word2idx)]
-                    train_set_idx.append(train_set_idx_temp)
-
-    if save:
-        with open("./trunk/train_set_words.pickle", 'wb') as f:
-            pickle.dump(train_set_words, f, protocol = pickle.HIGHEST_PROTOCOL)
-        with open("./trunk/train_set_idx.pickle", 'wb') as f:
-            pickle.dump(train_set_idx, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-    return train_set_idx
-'''
+    print(n[0][2] , n[0][3])
