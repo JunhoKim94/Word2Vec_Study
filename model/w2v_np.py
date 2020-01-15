@@ -2,18 +2,16 @@ import numpy as np
 
 
 class Embedding:
-    def __init__(self, input_size, output_size, padding_idx = None):
-        self.input_size = input_size
-        self.output_size = output_size
-        self.padding_idx = padding_idx
-        self.idx = None
+    def __init__(self, W):
 
-        self.W = np.random.uniform(size = (self.input_size, self.output_size))
-        self.grad = [np.zeros_like(self.W)]
+        #self.W = np.random.uniform(size = (self.input_size, self.output_size))
+        self.params = [W]
+        self.grads = [np.zeros_like(W)]
 
     def forward(self, x):
         self.idx = x
-        output = self.W[self.idx]
+        W, = self.params
+        output = W[self.idx]
 
         return output
 
@@ -22,20 +20,15 @@ class Embedding:
         idx 해당 하는 w 만 grad = 1 * dout
         나머지 0
         '''
-        dW = self.grad
+        dW, = self.grads
         dW[...] = 0
         np.add.at(dW, self.idx, dout)
 
 class Linear:
-    def __init__(self, input_size, output_size):
-        self.input_size = input_size
-        self.output_size = output_size
+    def __init__(self, W, b):
 
-
-        self.W = np.random.uniform(size = (self.input_size, self.output_size))
-        self.b = np.random.uniform(self.output_size)
-        self.grad = [np.zeros_like(self.W), np.zeros_like (self.b)]
-        self.params = [self.W, self.b]
+        self.grad = [np.zeros_like(W), np.zeros_like(b)]
+        self.params = [W,b]
 
     def forward(self, x):
         '''
@@ -45,8 +38,10 @@ class Linear:
         out : (N,D)
         '''
 
+        W, b = self.params
+
         self.x = x
-        output = np.matmul(self.x,self.W) + self.b
+        output = np.matmul(self.x,W) + b
 
         return output
 
@@ -57,7 +52,9 @@ class Linear:
         output: dW : (D,H)
                 db : (H,)
         '''
-        dx = np.dot(dout, self.W.T)
+        W,b = self.params
+
+        dx = np.dot(dout, W.T)
         dW = np.matmul(self.x.T, dout)
         db = np.sum(dout, axis=0)
 
@@ -66,7 +63,7 @@ class Linear:
 
         return dx
 
-def softmax(self, z):
+def softmax(z):
     #numerically stable softmax
     z = z - np.max(z, axis =1 , keepdims= True)
     _exp = np.exp(z)
@@ -111,17 +108,17 @@ class Sigmoid:
 
 
 class Hsoftmax:
-    def __init__(self,vocab_size, projection):
-        self.vocab_size = vocab_size
-        self.projection = projection
-
-        self.HSvector = Embedding(self.vocab_size -1, projection)
+    def __init__(self,W):
+        self.HSvector = Embedding(W)
         self.sigmoid = Sigmoid()
+
+        self.params = [W]
+        self.grads = [np.zeros_like(W)]
 
     def forward(self, x, label):
         '''
-        inputs : 1 x [idx]
-        label : 1 x [direction_path(2C, depth), idx_path(2C, depth)]
+        inputs : 1 x D(projection)
+        label : 1 x [direction_path(1, depth), idx_path(1, depth)]
         label 과 output 의 argmax를 비교해서 같으면 1 틀리면 0 을 부여한 후 이를 target vector로 설정해야됨
         ex) output = [0.7, 0.3, 0.4] label = [1, 1, 0]
         --> target = [1, 0, 1]
@@ -129,22 +126,26 @@ class Hsoftmax:
         : BCE Loss 를 사용할 것 : - y_t * log(y_p) - (1-y_t) * log(1 - y_p)
         false --> -log(1 - y_p) = -log(sigmoid(-v_t * h))
         True --> -log(y_p) = -log(sigmoid(v_t*h))
-
-        outputs: list of output & target
-        밖에서 loss값 따로 계산해야됨
         '''
+
+        W, = self.params
+        dir_path = label[0]
+        idx_path = label[1]
+
+        
+
+
 
         
 
 
 class HSModel:
     def __init__(self, vocab_size, projection):
-        self.vocab_size = vocab_size
-        self.projection = projection
 
-        self.embedding = Embedding(self.vocab_size, self.projection)
+        self.W_eb = np.random.uniform((vocab_size, projection))
+        self.W_hs = np.random.uniform((vocab_size - 1), projection)
 
-        self.W = self.embedding.W
+
 
     def forward_step(self, x_input, label):
         '''
