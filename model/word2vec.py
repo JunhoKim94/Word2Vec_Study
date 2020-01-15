@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+
 class CBOW(nn.Module):
     def __init__(self,vocab_size, projection_layer, sample_size):
         super(CBOW, self).__init__()
@@ -49,7 +50,7 @@ class CBOW(nn.Module):
         for params in self.embedding.parameters():
             self.w = params.data
 
-
+        print(self.w[-1])
         query_id = word2idx[word][0]
         query_vec = self.w[query_id]
 
@@ -112,43 +113,67 @@ class skip_gram(nn.Module):
             print(idx2word[int(result[i])] , similarity[int(result[i])])
         
 class skip_gram_with_Hierarchy(nn.Module):
-    def __init__(self, vocab_size, projection_layer, sample_size):
+    def __init__(self, vocab_size, projection_layer, sample_size, device):
         super(skip_gram_with_Hierarchy, self).__init__()
 
         self.vocab_size = vocab_size
         self.projection_layer = projection_layer
         self.sample_size = sample_size
+        self.device = device
 
-        self.embedding_1 = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx = self.vocab_size)
+        self.embedding_1 = nn.Embedding(self.vocab_size, self.projection_layer)
         
         self.embedding_2 = nn.Embedding(self.vocab_size - 1, self.projection_layer)
 
-    def forward_step(self, x_input):
+    def forward_step(self, x_input, label):
         '''
         skip-gram 중 random sample 하나 학습
         depth < max_depth
         input : x_input (idx, direction_list), idx_path(depth)
         '''
 
-        x_idx = torch.Tensor([x_input[0]])
-        dir_path = torch.Tensor(x_input[1])
+        #dir_path 는 타겟 단어의 path
+        #(1)
+        x_idx = torch.Tensor([x_input]).to(torch.long).to(self.device)
 
+        target_list = []
+        output_list = []
         #(1,D) : hidden layer
         proj = self.embedding_1(x_idx)
+        
+        
+        for dir_path, label in label:
+            #print(dir_path)
+            dir_path = torch.Tensor(dir_path).to(torch.long).to(self.device)
+            label = torch.Tensor(label).to(torch.long).to(self.device)
 
-        #(path_length, D)
-        hirearchy_vectors = self.embedding_2(dir_path)
+            #(path_length, D)
+            hirearchy_vectors = self.embedding_2(dir_path)
 
-        #(1, path_length)
-        output = torch.matmul(proj, hirearchy_vectors.T)
-        output = torch.sigmoid(output)
+            #(1, path_length)
+            output = torch.matmul(proj, hirearchy_vectors.T)
+            output = torch.sigmoid(output)
+            #print(output.shape)
+            output = output.squeeze(0).to(self.device)
 
-        return output
+            mask = torch.zeros_like(output)
+            mask[output >= 0.5] = 1
+            #print(label)
+            target = torch.zeros_like(label)
+            target[mask == label] = 1
+
+            target = target.to(torch.float).to(self.device)
+
+            target_list.append(target)
+            output_list.append(output)
+
+        return output_list, target_list
+
 
     def forward(self, inputs, label):
         '''
-        inputs : N x [idx, direction_list]
-        label : N x idx_path
+        inputs : N x [idx]
+        label : N x [direction_path(2C, depth), idx_path(2C, depth)]
         label 과 output 의 argmax를 비교해서 같으면 1 틀리면 0 을 부여한 후 이를 target vector로 설정해야됨
         ex) output = [0.7, 0.3, 0.4] label = [1, 1, 0]
         --> target = [1, 0, 1]
@@ -156,17 +181,21 @@ class skip_gram_with_Hierarchy(nn.Module):
         : BCE Loss 를 사용할 것 : - y_t * log(y_p) - (1-y_t) * log(1 - y_p)
         false --> -log(1 - y_p) = -log(sigmoid(-v_t * h))
         True --> -log(y_p) = -log(sigmoid(v_t*h))
+
+        outputs: list of output & target
+        밖에서 loss값 따로 계산해야됨
         '''
 
-        output = self.forward_step(inputs)
+        output_list = []
+        target_list = []
+        for single_input, single_label in zip(inputs,label):
 
-        mask = torch.zeros_like(output)
-        mask[output >= 0.5] = 1
+            output, target = self.forward_step(single_input, single_label)
 
-        target = torch.zeros_like(label)
-        target[mask == label] = 1
+            output_list.append(output)
+            target_list.append(target)
 
-        return output, target
+        return output_list, target_list
 
     def query(self, word, word2idx, idx2word, top = 5):
 

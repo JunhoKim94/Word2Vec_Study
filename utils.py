@@ -55,7 +55,7 @@ def corpus_making(path, batch = 500000, save = True, load = False):
 
     return word2idx, idx2word
 
-def delete_low_freq(word2idx, idx2word):
+def delete_low_freq(word2idx, idx2word, low_freq):
     new_word2idx = dict()
     new_idx2word = dict()
 
@@ -63,7 +63,7 @@ def delete_low_freq(word2idx, idx2word):
 
     for i in range(length):
         temp = idx2word[i]
-        if temp[1] < 6:
+        if temp[1] < low_freq:
             word2idx.pop(temp[0])
             idx2word.pop(i)
 
@@ -213,3 +213,4 @@ if __name__ == "__main__":
     n, max_ = _Huffman_Tree(word2idx)
 
     print(n[0][2] , n[0][3])
+
