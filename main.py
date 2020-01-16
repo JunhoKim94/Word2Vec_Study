@@ -11,11 +11,11 @@ import torch.nn.functional as F
 
 def data_gen(path, load, sample_size):
 
-    word2idx , idx2word = corpus_making(path, load= False, batch= 50000, save= False)
+    word2idx , idx2word = corpus_making(path ,batch= 50000)
 
     word2idx, idx2word = delete_low_freq(word2idx, idx2word, 6)
 
-    train_set_idx, total_word_len = train_data_gen(path = path, word2idx = word2idx, max_distance= sample_size, load = False, batch = 50000, save = False)
+    train_set_idx, total_word_len = train_data_gen(path = path, word2idx = word2idx, max_distance= sample_size, batch = 50000)
 
     
     return word2idx, idx2word, train_set_idx
@@ -186,6 +186,11 @@ def heirarchical_train(model, device, criterion, optimizer, epochs, batch_size, 
         
             loss = loss / (batch_size * 2 * sample_size)
 
+            optimizer.zero_grad()
+            #print(y_pred.shape, y_target.shape)
+            loss.backward()
+            optimizer.step()
+            
             if iteration % 20000 == 0:
                 print(f"total iteration : {total_num // batch_size} | iteration : {iteration} | train_iter_loss : {loss}")
             epoch_loss += loss.item()

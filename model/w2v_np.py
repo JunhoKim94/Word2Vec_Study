@@ -1,246 +1,87 @@
 import numpy as np
+from model.layers import Embedding, Sigmoid, Softmax, Linear
+from utils import _Huffman_Tree
 
-
-class Embedding:
-    def __init__(self, W):
-
-        #self.W = np.random.uniform(size = (self.input_size, self.output_size))
-        self.params = [W]
-        self.grads = [np.zeros_like(W)]
-
-    def forward(self, x):
-        self.idx = x
-        W, = self.params
-        output = W[self.idx]
-
-        return output
-
-    def backward(self, dout):
-        '''
-        idx 해당 하는 w 만 grad = 1 * dout
-        나머지 0
-        '''
-        dW, = self.grads
-        dW[...] = 0
-        np.add.at(dW, self.idx, dout)
-
-class Linear:
-    def __init__(self, W, b):
-
-        self.grad = [np.zeros_like(W), np.zeros_like(b)]
-        self.params = [W,b]
-
-    def forward(self, x):
-        '''
-        W = (D,H)
-        x = (N,D)
-
-        out : (N,D)
-        '''
-
-        W, b = self.params
-
-        self.x = x
-        output = np.matmul(self.x,W) + b
-
-        return output
-
-    def backward(self, dout):
-        '''
-        input: d_out (N,H)
-        self.x : (N,D)
-        output: dW : (D,H)
-                db : (H,)
-        '''
-        W,b = self.params
-
-        dx = np.dot(dout, W.T)
-        dW = np.matmul(self.x.T, dout)
-        db = np.sum(dout, axis=0)
-
-        self.grad[0][...] = dW
-        self.grad[1][...] = db
-
-        return dx
-
-def softmax(z):
-    #numerically stable softmax
-    z = z - np.max(z, axis =1 , keepdims= True)
-    _exp = np.exp(z)
-    _sum = np.sum(_exp,axis = 1, keepdims= True)
-    sm = _exp / _sum
-
-    return sm
-
-class Softmax:
+class BCELoss:
     def __init__(self):
-        self.params, self.grads = [], []
-        self.out = None
+        self.params = None
+        self.grads = None
+        self.eps = 1e-8
 
-    def forward(self, x):
-        self.out = softmax(x)
-        return self.out
+        self.y_pred , self.target = None, None
+        self.loss = None
 
-    def backward(self, dout):
-        '''
-        input: d_out (N,H)
-        self.x : (N,H)
-        output: 
-        '''
-        dx = self.out * dout
-        sumdx = np.sum(dx, axis=1, keepdims=True)
-        dx -= self.out * sumdx
-        return dx
+    def forward(self, y_pred, target, dim = 1):
 
-class Sigmoid:
-    def __init__(self):
-        self.params, self.grads = [], []
-        self.out = None
+        self.y_pred = y_pred
+        self.target = target
+        self.dim = dim
+        
+        self.loss = -self.target * np.log(self.y_pred + self.eps) - (1 - self.target) * np.log(1 - self.y_pred + self.eps)
+        self.loss = np.sum(self.loss, axis = dim)
 
-    def forward(self, x):
-        out = 1 / (1 + np.exp(-x))
-        self.out = out
-        return out
+        return self.loss
 
-    def backward(self, dout):
-        dx = dout * (1.0 - self.out) * self.out
-        return dx
-
+    def backward(self, dout = 1):
+        dx = (self.y_pred - self.target) / (self.y_pred * (1 - self.y_pred) +  self.eps) 
+        return dx * dout
 
 class Hsoftmax:
-    def __init__(self,W):
-        self.HSvector = Embedding(W)
+    def __init__(self, vocab_size, projection, sample_size):
+        self.Embedding = Embedding(vocab_size, projection)
+        self.HSvector = Embedding(vocab_size - 1 , projection)
         self.sigmoid = Sigmoid()
+        self.sample_size = sample_size
 
-        self.params = [W]
-        self.grads = [np.zeros_like(W)]
+        self.layers = [self.Embedding, self.HSvector]
+
+        self.params = []
+        self.grads = []
+
+        for layer in self.layers:
+            self.params.extend(layer.params)
+            self.grads.extend(layer.grads)
 
     def forward(self, x, label):
         '''
         inputs : 1 x D(projection)
         label : 1 x [direction_path(1, depth), idx_path(1, depth)]
         label 과 output 의 argmax를 비교해서 같으면 1 틀리면 0 을 부여한 후 이를 target vector로 설정해야됨
-        ex) output = [0.7, 0.3, 0.4] label = [1, 1, 0]
-        --> target = [1, 0, 1]
-        
-        : BCE Loss 를 사용할 것 : - y_t * log(y_p) - (1-y_t) * log(1 - y_p)
-        false --> -log(1 - y_p) = -log(sigmoid(-v_t * h))
-        True --> -log(y_p) = -log(sigmoid(v_t*h))
         '''
 
-        W, = self.params
-        dir_path = label[0]
-        idx_path = label[1]
-
+        dir_path = np.array(label[0])
+        idx_path = np.expand_dims(label[1], 1)
+        self.x = x
         
+        self.hidden = self.Embedding.forward(x)
 
+        self.hirearchy_vectors = self.HSvector.forward(dir_path)
 
+        out = np.matmul(self.hirearchy_vectors , self.hidden.T )
 
-        
+        out = self.sigmoid.forward(out)
 
+        mask = np.zeros_like(out)
+        mask[mask >= 0.5] = 1
 
-class HSModel:
-    def __init__(self, vocab_size, projection):
+        target = np.zeros_like(out)
+        target[mask == idx_path] = 1
 
-        self.W_eb = np.random.uniform((vocab_size, projection))
-        self.W_hs = np.random.uniform((vocab_size - 1), projection)
+        return out , target
 
+    def backward(self, dout):
 
+        W_in, W_out = self.params
+        #length x 1
+        d_sig = self.sigmoid.backward(dout)
+        #vocab -1 x hidden
+        d_lin = np.matmul(d_sig , self.hidden)
+        d_h = np.matmul(dout.T, self.hirearchy_vectors)
 
-    def forward_step(self, x_input, label):
+        self.HSvector.backward(d_lin)
+        self.Embedding.backward(d_h)
+
         '''
-        skip-gram 중 random sample 하나 학습
-        depth < max_depth
-        input : x_input (idx, direction_list), idx_path(depth)
+        print((self.grads[0] == self.Embedding.grads[0]).all())
+        print((self.grads[1] == self.HSvector.grads[0]).all())
         '''
-
-        target_list = []
-        output_list = []
-        #(1,D) : hidden layer
-        proj = self.embedding(x_input)
-        
-        
-        for dir_path, label in label:
-            #print(dir_path)
-
-            #(path_length, D)
-            hirearchy_vectors = self.HSvector(dir_path)
-
-            #(1, path_length)
-            output = np.matmul(proj, hirearchy_vectors.T)
-            output = sigmoid(output)
-            #print(output.shape)
-
-
-        return output_list, target_list
-
-
-    def forward(self, inputs, label):
-        '''
-        inputs : 1 x [idx]
-        label : 1 x [direction_path(2C, depth), idx_path(2C, depth)]
-        label 과 output 의 argmax를 비교해서 같으면 1 틀리면 0 을 부여한 후 이를 target vector로 설정해야됨
-        ex) output = [0.7, 0.3, 0.4] label = [1, 1, 0]
-        --> target = [1, 0, 1]
-        
-        : BCE Loss 를 사용할 것 : - y_t * log(y_p) - (1-y_t) * log(1 - y_p)
-        false --> -log(1 - y_p) = -log(sigmoid(-v_t * h))
-        True --> -log(y_p) = -log(sigmoid(v_t*h))
-
-        outputs: list of output & target
-        밖에서 loss값 따로 계산해야됨
-        '''
-        
-        output, target = self.forward_step(single_input, single_label)
-        proj = self.embedding(x_input)
-
-        #(path_length, D)
-        hirearchy_vectors = self.HSvector(dir_path)
-        output = np.matmul(proj, hirearchy_vectors.T)
-        output = sigmoid(output)
-
-
-
-
-        mask = np.zeros_like(output)
-        mask[output >= 0.5] = 1
-        #print(label)
-        target = np.zeros_like(label)
-        target[mask == label] = 1
-
-
-
-        return output_list, target_list
-
-    def query(self, word, word2idx, idx2word, top = 5):
-
-        if word not in word2idx:
-            print("%s는 corpus 안에 존재하지 않습니다"%word)
-            return
-        
-        for params in self.embedding.parameters():
-            self.w = params.data
-
-
-        query_id = word2idx[word][0]
-        query_vec = self.w[query_id]
-
-        query_vec = query_vec.unsqueeze(0)
-
-        similarity = F.cosine_similarity(self.w , query_vec)
-
-        result = similarity.argsort()
-
-        for i in range(top):
-            print(idx2word[int(result[i])] , similarity[int(result[i])])
-
-class SGD:
-    '''
-    (Stochastic Gradient Descent）
-    '''
-    def __init__(self, lr=0.01):
-        self.lr = lr
-        
-    def update(self, params, grads):
-        for i in range(len(params)):
-            params[i] -= self.lr * grads[i]

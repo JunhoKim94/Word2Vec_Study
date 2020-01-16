@@ -3,61 +3,42 @@ from tqdm import tqdm
 import pickle
 import heapq
 
-def corpus_making(path, batch = 500000, save = True, load = False):
+def corpus_making(path, batch = 500000):
     '''
     word2idx : key = word values = [idx, freq]
     idx2word : key = idx values = [word,freq]
     total_word_len : 중복을 허락한 모든 단어의 개수 (Unigram 계산을 위해 return)
     '''
-
-    if load:
-        with open("./trunk/word2idx.pickle", 'rb') as f:
-            word2idx = pickle.load(f)
-        with open("./trunk/idx2word.pickle", 'rb') as f:
-            idx2word = pickle.load(f)
-
-        
-    else:
-        idx2word = dict()
-        word2idx = dict()
-        batch = batch
-        with open(path,'r') as p:
-            for line in p:
-                total_len = len(line)
-        
-        with open(path, 'r') as p:
-            #while p.readline(1) != "":
-            for i in tqdm(range(total_len//batch), desc = "MAKING CORPUS"):
-                
-                temp = p.readline(batch)
-                if temp == "":
-                    break
-                temp = temp.split(" ")
-
-                for word in temp:
-                    #print(word)
-                    if word2idx.get(word) is None:
-                        word2idx[word] = [len(word2idx), 1]
-                        idx2word[len(idx2word)] = [word, 1]
-                    else:
-                        #print(word2idx, idx2word)
-                        word2idx[word][1] += 1
-                        idx2word[word2idx[word][0]][1] += 1
+    idx2word = dict()
+    word2idx = dict()
+    batch = batch
+    with open(path,'r') as p:
+        for line in p:
+            total_len = len(line)
     
-    #word_freq = sorted(word2idx.values(), key = lambda items : items[1], reverse= False)
+    with open(path, 'r') as p:
+        for i in tqdm(range(total_len//batch), desc = "MAKING CORPUS"):
+            
+            temp = p.readline(batch)
+            if temp == "":
+                break
+            temp = temp.split(" ")
 
+            for word in temp:
 
-    if save:
-        with open("./trunk/word2idx.pickle", 'wb') as f:
-            pickle.dump(word2idx, f, protocol = pickle.HIGHEST_PROTOCOL)
-        with open("./trunk/idx2word.pickle", 'wb') as f:
-            pickle.dump(idx2word, f, protocol = pickle.HIGHEST_PROTOCOL)
+                if word2idx.get(word) is None:
+                    word2idx[word] = [len(word2idx), 1]
+                    idx2word[len(idx2word)] = [word, 1]
+                else:
 
+                    word2idx[word][1] += 1
+                    idx2word[word2idx[word][0]][1] += 1
+    
     return word2idx, idx2word
 
 def delete_low_freq(word2idx, idx2word, low_freq):
-    new_word2idx = dict()
-    new_idx2word = dict()
+
+    new_word2idx, new_idx2word = dict(), dict()
 
     length = len(idx2word)
 
@@ -75,61 +56,48 @@ def delete_low_freq(word2idx, idx2word, low_freq):
 
     return new_word2idx, new_idx2word
 
-def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, load = False):
+def train_data_gen(path, max_distance, word2idx, batch = 500000):
 
     word2idx = word2idx
     train_set_idx = []
     batch = batch
 
+    with open(path,'r') as p:
+        for line in p:
+            total_len = len(line)
 
-    if load:
+    with open(path, 'r') as p:
+        for i in tqdm(range(total_len//batch), desc = "Making Train_set"):
+            temp = p.readline(batch)
+            if temp == "":
+                break
+            temp = temp.split(" ")
+            train_set = []
+            #change words to index
+            total_word_len = 0
+            for word in temp:
+                
+                if word not in word2idx.keys():
+                    continue
 
-        with open("./trunk/train_set_idx.pickle", 'rb') as f:
-            train_set_idx = pickle.load(f)
+                train_set += [word2idx[word][0]]
 
-
-    else:
-
-        with open(path,'r') as p:
-            for line in p:
-                total_len = len(line)
-
-        with open(path, 'r') as p:
-            #while p.readline(1) != "":
-            for i in tqdm(range(total_len//batch), desc = "Making Train_set"):
-                temp = p.readline(batch)
-                if temp == "":
-                    break
-                temp = temp.split(" ")
-                train_set = []
-                #change words to index
-                total_word_len = 0
-                for word in temp:
-                    
-                    if word not in word2idx.keys():
-                        continue
-
-                    train_set += [word2idx[word][0]]
-
-                total_word_len += len(train_set)
+            total_word_len += len(train_set)
 
 
-                for i, idx in enumerate(range(max_distance, len(temp) - max_distance + 1)):
-                    #train_set_idx : [R-C : R : R+C] X N
-                    train_set_idx_temp = np.array(train_set[i:idx + max_distance + 1])
-                    #train_set_idx 마지막 부분이 짤리는 것을 대비하여 0 으로 패딩
-                    if (len(train_set_idx_temp) != (2*max_distance + 1)):
-                        continue
-                        '''
-                        for i in range(2*max_distance + 1 - len(train_set_idx_temp)):
-                            #print(len(word2idx))
-                            train_set_idx_temp += [len(word2idx)]
-                        '''
-                    train_set_idx.append(train_set_idx_temp)
+            for i, idx in enumerate(range(max_distance, len(temp) - max_distance + 1)):
+                #train_set_idx : [R-C : R : R+C] X N
+                train_set_idx_temp = np.array(train_set[i:idx + max_distance + 1])
+                #train_set_idx 마지막 부분이 짤리는 것을 대비하여 0 으로 패딩
+                if (len(train_set_idx_temp) != (2*max_distance + 1)):
+                    continue
+                    '''
+                    for i in range(2*max_distance + 1 - len(train_set_idx_temp)):
+                        #print(len(word2idx))
+                        train_set_idx_temp += [len(word2idx)]
+                    '''
+                train_set_idx.append(train_set_idx_temp)
 
-    if save:
-        with open("./trunk/train_set_idx.pickle", 'wb') as f:
-            pickle.dump(train_set_idx, f, protocol = pickle.HIGHEST_PROTOCOL)
 
     return np.array(train_set_idx), total_word_len
 
@@ -138,7 +106,6 @@ def train_data_gen(path, max_distance, word2idx, batch = 500000, save = True, lo
 def _Huffman_Tree(word2idx):
     vocab_size = len(word2idx)
     
-    #heap = sorted(word2idx.values(), key = lambda items : items[1], reverse= False)
     heap = [[freq, i] for i,freq in word2idx.values()]
     heapq.heapify(heap)
     for i in tqdm(range(vocab_size - 1), desc = "Huffman_Tree"):
@@ -146,38 +113,28 @@ def _Huffman_Tree(word2idx):
         min2 = heapq.heappop(heap)
         
         heapq.heappush(heap,[min1[0] + min2[0], i + vocab_size, min1, min2])
-        #heap = sorted(heap, key = lambda items : items[1], reverse= False)
-        #print(heap)
-    
-    #heap have nodes
+
     #node = [idx, freq, left child, right child]
     node_stack = []
     stack = [[heap[0], [], []]]
     max_depth = 0 
     while len(stack) != 0:
         node, direction_path, node_path = stack.pop()
-        #print(stack)
-        #print(node,direction_path, node_path)
 
         if node[1] < vocab_size:
-            node.append(direction_path)
-            node.append(node_path)
+            node.append(np.array(direction_path))
+            node.append(np.array(node_path))
             max_depth = max(len(direction_path), max_depth)
             node_stack.append(node)
         else:
             #node_path는 자기 자신 제외 : leaf 노드는 v가 필요 없으니까
             node_num = [node[1] - vocab_size]
-            #node_path = np.array(list(node_path) + node_num)
-            #node_path = list(node_path)
-            #print(node_path)
             stack.append([node[2], direction_path + [0], node_path + node_num])
             stack.append([node[3], direction_path + [1], node_path + node_num])
 
 
     node_stack = sorted(node_stack, key=lambda items: items[1])
-    #node_stack
     #[idx, freq, direction path(list), node_path(list)]
-    #path들은 서로 길이가 다르기 때문에 추가적으로 padding을 해줘야 할거 같음
     return node_stack, max_depth
 
 class Unigram_Sampler:

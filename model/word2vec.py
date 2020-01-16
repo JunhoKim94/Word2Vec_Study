@@ -219,3 +219,4 @@ class skip_gram_with_Hierarchy(nn.Module):
         for i in range(top):
             print(idx2word[int(result[i])] , similarity[int(result[i])])
         
+
