@@ -16,9 +16,10 @@ class BCELoss:
         self.y_pred = y_pred
         self.target = target
         self.dim = dim
+        number = target.shape[0]
         
         self.loss = -self.target * np.log(self.y_pred + self.eps) - (1 - self.target) * np.log(1 - self.y_pred + self.eps)
-        self.loss = np.sum(self.loss, axis = dim)
+        self.loss = np.sum(self.loss, axis = dim) / number
 
         return self.loss
 
