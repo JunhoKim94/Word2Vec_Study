@@ -2,6 +2,7 @@ import numpy as np
 from tqdm import tqdm
 import pickle
 import heapq
+import collections
 
 def corpus_making(path, batch = 500000):
     '''
@@ -27,8 +28,9 @@ def corpus_making(path, batch = 500000):
             for word in temp:
 
                 if word2idx.get(word) is None:
-                    word2idx[word] = [len(word2idx), 1]
+                    word2idx[word] = [len(word2idx) + 1, 1]
                     idx2word[len(idx2word)] = [word, 1]
+
                 else:
 
                     word2idx[word][1] += 1
@@ -165,8 +167,8 @@ class Unigram_Sampler:
 
 if __name__ == "__main__":
     path = "./data/text8.txt"
-    word2idx , idx2word = corpus_making(path, load= False, batch= 50000)
-    word2idx, idx2word = delete_low_freq(word2idx, idx2word)
+    word2idx , idx2word = corpus_making(path, batch= 50000)
+    word2idx, idx2word = delete_low_freq(word2idx, idx2word, 10)
     n, max_ = _Huffman_Tree(word2idx)
 
     print(n[0][2] , n[0][3])

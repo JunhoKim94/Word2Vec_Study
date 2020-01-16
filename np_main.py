@@ -9,7 +9,7 @@ import time
 batch_size = 300
 sample_size = 5
 path = "./data/text8.txt"
-word2idx , idx2word = corpus_making(path,batch= 50000)
+word2idx , idx2word = corpus_making(path, batch= 50000)
 
 word2idx, idx2word = delete_low_freq(word2idx, idx2word, 10)
 
@@ -26,6 +26,7 @@ b_tree, max_ = _Huffman_Tree(word2idx)
 label = np.array([[path, idx_path] for _, _, idx_path ,path in b_tree])
 
 st = time.time()
+
 
 for iteration in range(len(train_set_idx) // batch_size):
     batch_train = train_set_idx[np.random.choice(len(train_set_idx), batch_size)]
