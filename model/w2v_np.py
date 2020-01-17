@@ -1,6 +1,7 @@
 import numpy as np
 from model.layers import Embedding, Sigmoid, Softmax, Linear
-from utils import _Huffman_Tree
+from preprocess import *
+import pickle
 
 class BCELoss:
     def __init__(self):
@@ -54,7 +55,7 @@ class Hsoftmax:
         idx_path = np.expand_dims(label[1], 1)
         self.x = x
         
-        self.hidden = self.Embedding.forward(x)
+        self.hidden = self.Embedding.forward(self.x)
 
         self.hirearchy_vectors = self.HSvector.forward(dir_path)
 
@@ -86,3 +87,27 @@ class Hsoftmax:
         print((self.grads[0] == self.Embedding.grads[0]).all())
         print((self.grads[1] == self.HSvector.grads[0]).all())
         '''
+    def save(self, path):
+        with open(path, 'wb') as f:
+            pickle.dump(self.params, f, pickle.HIGHEST_PROTOCOL)
+
+    def query(self, word, word2idx, idx2word, top = 5):
+
+        if word not in word2idx:
+            print("%s는 corpus 안에 존재하지 않습니다"%word)
+            return
+        
+        W_in , _ = self.params
+
+        query_id = word2idx[word]
+        query_vec = W_in[query_id]
+
+        #오름차순에 의해 정렬
+        similarity = cosine_similarity(W_in , query_vec)
+
+        result = similarity.argsort()[-top:]
+
+        print(word)
+
+        for i in range(top):
+            print(idx2word[int(result[i])] , similarity[int(result[i])])

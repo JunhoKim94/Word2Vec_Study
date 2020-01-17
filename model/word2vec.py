@@ -15,7 +15,7 @@ class CBOW(nn.Module):
         self.vocab_size = vocab_size
         self.sample_size = sample_size
 
-        self.embedding = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx= self.vocab_size)
+        self.embedding = nn.Embedding(self.vocab_size, self.projection_layer)
         self.linear = nn.Linear(self.projection_layer, self.vocab_size)
 
 
@@ -73,7 +73,7 @@ class skip_gram(nn.Module):
         self.sample_size = sample_size
 
         #padding data --> idx = 0 : embed size 가 vocab size + 1 이여야 됨
-        self.embedding = nn.Embedding(self.vocab_size + 1, self.projection_layer, padding_idx= self.vocab_size)
+        self.embedding = nn.Embedding(self.vocab_size, self.projection_layer)
         self.linear = nn.Linear(self.projection_layer, vocab_size)
 
     def forward(self, x):
@@ -112,6 +112,12 @@ class skip_gram(nn.Module):
         for i in range(top):
             print(idx2word[int(result[i])] , similarity[int(result[i])])
         
+
+
+
+
+
+
 class skip_gram_with_Hierarchy(nn.Module):
     def __init__(self, vocab_size, projection_layer, sample_size, device):
         super(skip_gram_with_Hierarchy, self).__init__()
@@ -219,4 +225,3 @@ class skip_gram_with_Hierarchy(nn.Module):
         for i in range(top):
             print(idx2word[int(result[i])] , similarity[int(result[i])])
         
-

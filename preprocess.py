@@ -4,6 +4,46 @@ import pickle
 import heapq
 import collections
 
+
+class Sampler:
+    def __init__(self, count , power, total_word_len):
+
+        self.vocab_size = len(count)
+        self.count = count
+        self.word_p = np.array(count)
+        self.power = power
+
+        self.word_p = np.power(self.word_p, self.power)
+        self.word_p /=  np.sum(self.word_p)
+
+        self.sub_word_p = 1 - (1e-5 / self.word_p) ** 0.5
+
+    def unigram_sampling(self, word_idx, sample_size):
+        '''
+        input :
+                word_idx (2C)
+                sample_size = 2C
+        output:
+                unisampled_word_idx (1 * 2C)
+        '''
+        word_p = self.word_p[word_idx]
+        choice = np.random.choice(word_idx, sample_size, p = word_p)
+
+        return choice
+
+    def sub_sampling(self, word_idx)
+        
+        def subtract(pobablity):
+            return np.random.choice([1,0], 1 , p = [pobablity, 1- pobablity])
+        
+        new_word = []
+        for idx in word_index:
+            pobablity = self.sub_word_p[idx]
+            if subtract(probablity)[0]:
+                new_word.append(idx)
+
+        return np.array(new_word)
+
 def recall_word(path):
     with open(path, 'r') as f:
         words = f.readlines()
@@ -24,7 +64,7 @@ def corpus_making_version2(words, most_common = 50000):
 
     data = []
     for word, freq in count:
-        data.append([len(word2idx), freq])
+        data.append(freq)
         word2idx[word] = len(word2idx)
         idx2word[len(idx2word)] = word
         
@@ -39,7 +79,7 @@ def word_id_gen(words, word2idx, count):
 
         if word not in word2idx:
             word_id += [word2idx["UNK"]]
-            count[0][1] += 1
+            count[0] += 1
         else:
             word_id += [word2idx[word]]
 
@@ -50,20 +90,26 @@ def word_id_gen(words, word2idx, count):
 def train_token_gen(word_id, skip_gram, word_index):
     
     #word_index(중심단어)를 제외한 배열 생성
-    seed = []
-    for i in range(word_index - skip_gram , word_index + skip_gram + 1):
-        seed.append(i)
-    seed.pop(skip_gram)
+    batch_size = len(word_index)
+    skip_size = skip_gram * 2
     
-    train_data = word_id[word_index]
-    label = word_id[seed]
+    train_data = np.ndarray(shape = (batch_size * skip_size, 1), dtype = np.int32)
+    label = np.ndarray(shape = (batch_size * skip_size), dtype = np.int32)
+    
+    for i, index in enumerate(word_index):
+
+        seed = list(range(index - skip_gram , index + skip_gram + 1))
+        seed.pop(skip_gram)
+
+        train_data[i*skip_size : (i+1) * skip_size, 0] = word_id[index]
+        label[i*skip_size : (i+1) * skip_size] = word_id[seed]
     
     return train_data, label
 
 def Huffman_Tree(count):
     vocab_size = len(count)
     
-    heap = [[freq, i] for i,freq in count]
+    heap = [[freq, i] for i,freq in enumerate(count)]
     heapq.heapify(heap)
     for i in tqdm(range(vocab_size - 1), desc = "Huffman_Tree"):
         min1 = heapq.heappop(heap)
@@ -90,11 +136,23 @@ def Huffman_Tree(count):
             stack.append([node[3], direction_path + [1], node_path + node_num])
 
 
-    node_stack = sorted(node_stack, key=lambda items: items[1])
-    #[idx, freq, direction path(list), node_path(list)]
-    return np.array(node_stack), max_depth
+    node_stack = np.array(sorted(node_stack, key=lambda items: items[1]))
+    node_stack = node_stack[:, 2:4]
+    #[direction path(list), node_path(list)]
+    return node_stack, max_depth
 
+def cosine_similarity(x,y):
+    # 두 벡터간의 cos (theta) 를 통해 유사도 결정
+    assert len(x.shape) == 2
 
+    product = np.matmul(x, y.T)
+
+    x_norm = np.linalg.norm(x , axis = 1)
+    y_norm = np.linalg.norm(y)
+
+    product = product / x_norm / y_norm
+
+    return product
 
 if __name__ == "__main__":
 
@@ -102,7 +160,8 @@ if __name__ == "__main__":
     words = recall_word(path)
     word2idx, idx2word, count = corpus_making_version2(words)
     word_id = word_id_gen(words, word2idx, count)
-    train_data, label = train_token_gen(word_id, 3, 7)
+    train_data, label = train_token_gen(word_id, 5 , [1,4,6,2])
     node, max_depth = Huffman_Tree(count)
-    print(count[0])
+    #print(train_data, label)
     labels = node[label]
+    print(count)

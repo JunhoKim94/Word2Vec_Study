@@ -1,7 +1,7 @@
 import numpy as np
 from model.layers import Embedding, Sigmoid, Softmax, Linear
 from model.w2v_np import Hsoftmax, BCELoss
-from utils import _Huffman_Tree, corpus_making, delete_low_freq, train_data_gen
+from preprocess import *
 from optim.optimizer import SGD
 from itertools import repeat
 import time
@@ -9,48 +9,56 @@ import time
 batch_size = 300
 sample_size = 5
 path = "./data/text8.txt"
-word2idx , idx2word = corpus_making(path, batch= 50000)
 
-word2idx, idx2word = delete_low_freq(word2idx, idx2word, 10)
+words = recall_word(path)
+word2idx, idx2word, count = corpus_making_version2(words, most_common= 80000)
+word_id = word_id_gen(words, word2idx, count)
 
-train_set_idx, total_word_len = train_data_gen(path = path, word2idx = word2idx, max_distance= sample_size, batch = 50000)
+node, max_depth = Huffman_Tree(count)
 
+total_num = len(words)
 
-total_num = len(word2idx)
-
-model = Hsoftmax(total_num, 400, sample_size)
+model = Hsoftmax(len(word2idx), 400, sample_size)
 criterion = BCELoss()
 optimizer = SGD(lr = 0.05)
-
-b_tree, max_ = _Huffman_Tree(word2idx)
-label = np.array([[path, idx_path] for _, _, idx_path ,path in b_tree])
 
 st = time.time()
 
 
-for iteration in range(len(train_set_idx) // batch_size):
-    batch_train = train_set_idx[np.random.choice(len(train_set_idx), batch_size)]
 
-    
+for iteration in range(total_num // batch_size):
+
+    idx = np.random.choice(total_num - sample_size, batch_size)
+    train_data, label = train_token_gen(word_id, sample_size, idx)
+    label = node[label]
+
     l = 0
-    for i in range(batch_size):
-        x_train = batch_train[i,sample_size]
-        label_train_idx = np.delete(batch_train[i,:] , sample_size)
-        #1 x [path(2C), idx_path(2C)]
-        label_train = label[np.random.choice(label_train_idx, sample_size * 2)]
+    for x, lab in zip(train_data, label):
+        y, t = model.forward(x, lab)
+        loss = criterion.forward(y, t, dim = 0)
+        
+        dloss = criterion.backward()
+        model.backward(dloss)
 
-        for x, lab in zip(repeat(x_train), label_train):
-            x = [x]
-            y, t = model.forward(x, lab)
-            loss = criterion.forward(y, t, dim = 0)
-            
-            dloss = criterion.backward()
-            model.backward(dloss)
-
-            l += loss
+        l += loss
 
     optimizer.update(model.params, model.grads)
     optimizer._zero_grad(model.grads)
 
+    
     if iteration % 500 == 0:
         print(f"iteration : {iteration} | current loss : {l / batch_size / 2 / sample_size} | time spend : {time.time() - st}")
+        model.save("./bestmodel.pickle")
+        ex = np.random.choice(len(word2idx), 1)[0]
+        model.query(idx2word[ex], word2idx, idx2word, top = 5)
+
+
+
+def evaluate(path, model, word2idx, idx2word):
+    with open("./bestmodel.pickle", 'rb') as f:
+        x = pickle.load(f)
+
+    model.params = x
+    for i in range(10):
+        ex = np.random.choice(len(word2idx), 1)[0]
+        model.query(idx2word[ex], word2idx, idx2word, top = 5)
