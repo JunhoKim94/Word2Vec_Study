@@ -1,10 +1,13 @@
 import numpy as np
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))    
+
 class Embedding:
     def __init__(self, input_size, output_size):
 
         #self.W = np.random.uniform(size = (self.input_size, self.output_size))
-        self.params = [np.random.uniform(size = (input_size, output_size))]
+        self.params = [np.random.random(size = (input_size, output_size)).astype(np.float32)]
         self.grads = [np.zeros_like(self.params[0])]
 
     def forward(self, x):
@@ -17,14 +20,15 @@ class Embedding:
 
         return output
 
-    def backward(self, dout):
+    def backward(self, dout, lr):
         '''
         idx 해당 하는 w 만 grad = 1 * dout
         나머지 0
         '''
-        dW, = self.grads
-        #dW[...] = 0
-        dW[self.idx] += dout
+        #dW, = self.grads
+        W,  = self.params
+        #dW[self.idx] += dout
+        W[self.idx] -= dout * lr
         #np.add.at(dW, self.idx, dout)
 
     def _zero_grad(self):

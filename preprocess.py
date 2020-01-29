@@ -3,6 +3,7 @@ from tqdm import tqdm
 import pickle
 import heapq
 import collections
+import os
 
 
 class Sampler:
@@ -31,7 +32,7 @@ class Sampler:
 
         return choice
 
-    def sub_sampling(self, word_idx)
+    def sub_sampling(self, word_idx):
         
         def subtract(pobablity):
             return np.random.choice([1,0], 1 , p = [pobablity, 1- pobablity])
@@ -45,13 +46,56 @@ class Sampler:
         return np.array(new_word)
 
 def recall_word(path):
-    with open(path, 'r') as f:
-        words = f.readlines()
-        words = words[0].split()
 
-    return words
+    word = []
+    with open(path, 'r', encoding = "UTF8") as f:
+        lines = f.readlines()
+        for line in lines:
+            word += line.split()
 
-def corpus_making_version2(words, most_common = 50000):
+    return word
+
+#대용량 데이터를 나눠서 corpus를 생성
+def recall_and_corpus(path, batch = 9):
+
+    file_path = list()
+    for path, dir , files in os.walk(path):
+        for filename in files:
+            file_path.append(path + "/" + filename)
+
+
+    assert len(file_path) % batch == 0
+
+    collect = collections.Counter()
+
+    del path, dir, files
+
+    for i in tqdm(range(len(file_path)//batch), desc =  "Making Corpus by batch"):
+        word_token = []
+        for path in file_path[i * batch : (i+1) * batch]:
+            word = recall_word(path)
+            word_token += word
+
+        collect.update(word_token)
+    
+    selected = collect.most_common(500 * 10**3)
+    count = [["UNK", -1]]
+    count.extend(selected)
+
+    word2idx = dict()
+    idx2word = dict()
+    data = []
+    for word, freq in count:
+        data.append(freq)
+        word2idx[word] = len(word2idx)
+        idx2word[len(idx2word)] = word
+        
+    count = data
+
+    return word2idx, idx2word, count, file_path
+
+
+def corpus_making(words, most_common = 50000):
     
     word2idx = dict()
     idx2word = dict()
@@ -79,7 +123,7 @@ def word_id_gen(words, word2idx, count):
 
         if word not in word2idx:
             word_id += [word2idx["UNK"]]
-            count[0] += 1
+            #count[0] += 1
         else:
             word_id += [word2idx[word]]
 
@@ -90,21 +134,24 @@ def word_id_gen(words, word2idx, count):
 def train_token_gen(word_id, skip_gram, word_index):
     
     #word_index(중심단어)를 제외한 배열 생성
-    batch_size = len(word_index)
+    #batch_size = len(word_index)
     skip_size = skip_gram * 2
-    
+    '''
     train_data = np.ndarray(shape = (batch_size * skip_size, 1), dtype = np.int32)
     label = np.ndarray(shape = (batch_size * skip_size), dtype = np.int32)
+    
     
     for i, index in enumerate(word_index):
 
         seed = list(range(index - skip_gram , index + skip_gram + 1))
         seed.pop(skip_gram)
 
-        train_data[i*skip_size : (i+1) * skip_size, 0] = word_id[index]
-        label[i*skip_size : (i+1) * skip_size] = word_id[seed]
-    
-    return train_data, label
+        train_data[i * skip_size : (i+1) * skip_size, 0] = word_id[index]
+        label[i * skip_size : (i+1) * skip_size] = word_id[seed]
+    '''
+    seed = list(range(word_index - skip_gram , word_index + skip_gram + 1))
+    seed.pop(skip_gram)
+    return word_id[word_index], word_id[seed]
 
 def Huffman_Tree(count):
     vocab_size = len(count)
@@ -138,6 +185,14 @@ def Huffman_Tree(count):
 
     node_stack = np.array(sorted(node_stack, key=lambda items: items[1]))
     node_stack = node_stack[:, 2:4]
+
+    #path = ([dir_path + pad],[node_path + pad],truth_length)
+    path_ = np.zeros((vocab_size, max_depth * 2 + 1))
+    for i in tqdm(range(vocab_size), desc = "Padding Paths"):
+        truth_length = len(node_stack[i,0])
+        path_[i,0:truth_length] = node_stack[i,0]
+        path_[i, max_depth : max_depth + truth_length] = node_stack[i,1]
+        path_[i, -1] = truth_length
     #[direction path(list), node_path(list)]
     return node_stack, max_depth
 

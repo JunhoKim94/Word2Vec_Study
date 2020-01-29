@@ -1,3 +1,5 @@
 .vscode/*
 .idea/*
 __pychache__/*
+1-billion-word/*
+bestmodel.pickle
