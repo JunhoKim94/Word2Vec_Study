@@ -1,2 +1,0 @@
-this file created by junho for testing the word2vec
-this row is written by junho for testing the readline

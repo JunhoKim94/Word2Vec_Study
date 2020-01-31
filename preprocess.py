@@ -5,45 +5,69 @@ import heapq
 import collections
 import os
 
-
 class Sampler:
-    def __init__(self, count , power, total_word_len):
+    def __init__(self, count , power, k = 5, skip = 5):
 
         self.vocab_size = len(count)
-        self.count = count
+        self.count = np.array(count)
         self.word_p = np.array(count)
         self.power = power
 
-        self.word_p = np.power(self.word_p, self.power)
-        self.word_p /=  np.sum(self.word_p)
+        self.k = k
+        self.skip = skip * 2
 
+        self.word_p = self.count / np.sum(self.count)
         self.sub_word_p = 1 - (1e-5 / self.word_p) ** 0.5
+        self.sub_word_p[self.sub_word_p < 0] = 0
 
-    def unigram_sampling(self, word_idx, sample_size):
-        '''
-        input :
-                word_idx (2C)
-                sample_size = 2C
-        output:
-                unisampled_word_idx (1 * 2C)
-        '''
-        word_p = self.word_p[word_idx]
-        choice = np.random.choice(word_idx, sample_size, p = word_p)
+        #self.word_p /= np.sum(self.word_p)
+        self.word_p = np.power(self.word_p, self.power)
+        self.word_p = self.word_p / np.sum(self.word_p)
 
-        return choice
+    def nega_train_token(self, word_id, word_index):
+        #word_index(중심단어)를 제외한 배열 생성
+        batch_size = len(word_index)
+        
+        negative_sample = np.zeros((batch_size, (self.k + 1) * self.skip), dtype = np.int32)
+        target = np.zeros((batch_size, (self.k + 1) * self.skip))
+
+        for i, index in enumerate(word_index):
+
+            seed = list(range(index - self.skip//2 , index + self.skip//2 + 1))
+            seed.pop(self.skip//2)
+            tar_idx = word_id[seed]
+
+            #1 x k *skip_size
+            p = self.word_p.copy()
+            p[tar_idx] = 0
+            p /= p.sum()
+            negative_sample[i, :self.skip] = tar_idx
+            negative_sample[i, self.skip:] = np.random.choice(self.vocab_size, self.k * self.skip, p = p)
+            target[i, :self.skip] = 1
+
+        return negative_sample, target
 
     def sub_sampling(self, word_idx):
-        
-        def subtract(pobablity):
-            return np.random.choice([1,0], 1 , p = [pobablity, 1- pobablity])
-        
-        new_word = []
-        for idx in word_index:
-            pobablity = self.sub_word_p[idx]
-            if subtract(probablity)[0]:
-                new_word.append(idx)
+        '''
+        word_idx = 1 x batch --> [i1, i2, i3, i1, i1, i2 ...]
+        out --> [T, F, F, T, F ...]
+        '''
+        def subtract(probablity):
+            return np.random.choice([False,True] , p = [probablity, 1 - probablity])
+        iswordtrain = []
+        for idx in word_idx:
+            probablity = self.sub_word_p[idx]
+            iswordtrain.append(subtract(probablity))
 
-        return np.array(new_word)
+        return iswordtrain
+
+def batch_words(paths):
+    words = []
+    for path in paths:
+        word = recall_word(path)
+        words += word
+
+    return words
 
 def recall_word(path):
 
@@ -78,8 +102,8 @@ def recall_and_corpus(path, batch = 9):
 
         collect.update(word_token)
     
-    selected = collect.most_common(500 * 10**3)
-    count = [["UNK", -1]]
+    selected = collect.most_common(692 * 10**3)
+    count = [["UNK", 1]]
     count.extend(selected)
 
     word2idx = dict()
@@ -123,7 +147,7 @@ def word_id_gen(words, word2idx, count):
 
         if word not in word2idx:
             word_id += [word2idx["UNK"]]
-            #count[0] += 1
+            count[0] += 1
         else:
             word_id += [word2idx[word]]
 
@@ -134,9 +158,9 @@ def word_id_gen(words, word2idx, count):
 def train_token_gen(word_id, skip_gram, word_index):
     
     #word_index(중심단어)를 제외한 배열 생성
-    #batch_size = len(word_index)
+    batch_size = len(word_index)
     skip_size = skip_gram * 2
-    '''
+    
     train_data = np.ndarray(shape = (batch_size * skip_size, 1), dtype = np.int32)
     label = np.ndarray(shape = (batch_size * skip_size), dtype = np.int32)
     
@@ -148,10 +172,12 @@ def train_token_gen(word_id, skip_gram, word_index):
 
         train_data[i * skip_size : (i+1) * skip_size, 0] = word_id[index]
         label[i * skip_size : (i+1) * skip_size] = word_id[seed]
-    '''
-    seed = list(range(word_index - skip_gram , word_index + skip_gram + 1))
-    seed.pop(skip_gram)
-    return word_id[word_index], word_id[seed]
+    
+    #seed = list(range(word_index - skip_gram , word_index + skip_gram + 1))
+    #seed.pop(skip_gram)
+    #return word_id[word_index], word_id[seed]
+
+    return train_data, label
 
 def Huffman_Tree(count):
     vocab_size = len(count)
@@ -187,36 +213,25 @@ def Huffman_Tree(count):
     node_stack = node_stack[:, 2:4]
 
     #path = ([dir_path + pad],[node_path + pad],truth_length)
-    path_ = np.zeros((vocab_size, max_depth * 2 + 1))
+    path_ = np.zeros((vocab_size, max_depth * 2 + 1)).astype(np.int)
     for i in tqdm(range(vocab_size), desc = "Padding Paths"):
         truth_length = len(node_stack[i,0])
         path_[i,0:truth_length] = node_stack[i,0]
         path_[i, max_depth : max_depth + truth_length] = node_stack[i,1]
         path_[i, -1] = truth_length
     #[direction path(list), node_path(list)]
-    return node_stack, max_depth
+    return path_, max_depth
 
 def cosine_similarity(x,y):
     # 두 벡터간의 cos (theta) 를 통해 유사도 결정
     assert len(x.shape) == 2
+    # y --> (M, D) : M개 검사
+
+    #product = np.sum(x * y , axis = 1)
+    
+    x /= np.linalg.norm(x , axis = 1, keepdims = True)
+    y /= np.linalg.norm(y, axis = 1, keepdims = True)
 
     product = np.matmul(x, y.T)
 
-    x_norm = np.linalg.norm(x , axis = 1)
-    y_norm = np.linalg.norm(y)
-
-    product = product / x_norm / y_norm
-
     return product
-
-if __name__ == "__main__":
-
-    path = "./data/text8.txt"
-    words = recall_word(path)
-    word2idx, idx2word, count = corpus_making_version2(words)
-    word_id = word_id_gen(words, word2idx, count)
-    train_data, label = train_token_gen(word_id, 5 , [1,4,6,2])
-    node, max_depth = Huffman_Tree(count)
-    #print(train_data, label)
-    labels = node[label]
-    print(count)

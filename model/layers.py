@@ -3,11 +3,39 @@ import numpy as np
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))    
 
+
+class BCELossWithSigmoid:
+    def __init__(self):
+        self.params = None
+        self.grads = None
+        self.eps = 1e-7
+
+        self.y_pred , self.target = None, None
+        self.loss = None
+
+    def forward(self, y_pred, target):
+
+        self.target = target
+        self.y_pred = sigmoid(y_pred)
+
+        number = target.shape[0]
+
+        self.loss = -self.target * np.log(self.y_pred + self.eps) - (1 - self.target) * np.log(1 - self.y_pred + self.eps)
+
+        self.loss = np.sum(self.loss) / number
+
+        return self.loss
+
+    def backward(self):
+        dx = self.y_pred - self.target
+        return dx
+
+
 class Embedding:
     def __init__(self, input_size, output_size):
 
         #self.W = np.random.uniform(size = (self.input_size, self.output_size))
-        self.params = [np.random.random(size = (input_size, output_size)).astype(np.float32)]
+        self.params = [np.random.uniform(size = (input_size, output_size)).astype(np.float32)]
         self.grads = [np.zeros_like(self.params[0])]
 
     def forward(self, x):

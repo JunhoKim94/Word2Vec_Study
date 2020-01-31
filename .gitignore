@@ -1,5 +1,6 @@
 .vscode/*
 .idea/*
-__pychache__/*
+__pycache__/*
+.ipynb_chechpoints/*
 1-billion-word/*
 bestmodel.pickle
