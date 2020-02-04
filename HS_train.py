@@ -35,9 +35,15 @@ criterion = BCELossWithSigmoid()
 #optimizer = SGD(lr = 0.0025)
 nsampler = Sampler(count, 0.75)
 
+with open("./bestmodel.pickle", 'rb') as f:
+    x = pickle.load(f)
+
+
+model.params = x
+
 dev = 11
 st = time.time()
-for i in range(len(file_path) // dev):
+for i in range(1,len(file_path) // dev):
     words = batch_words(file_path[i * dev : (i+1) * dev])
     total_num = len(words)
     word_id = word_id_gen(words, word2idx, count)

@@ -39,7 +39,7 @@ def train(model, criterion, word_id, nsampler):
     total_num = len(word_id)
     
     best_loss = 1e10
-
+    st = time.time()
     for epoch in range(epochs + 1):
         epoch_loss = 0
         loss = 0
@@ -60,12 +60,12 @@ def train(model, criterion, word_id, nsampler):
             dloss = criterion.backward()
             model.backward(dloss)
 
-        if iteration % 300 == 0:
-            left = (total_num // batch_size - iteration)
-            t = (time.time() - cur_t) / 3600
-            predict = left * t / (iteration + 1)
-            print(f"iteration : {iteration} | current loss : {loss} | time spend : {time.time() - st} | time_left : {predict} hours left | total expect time : {(left + iteration) * t / (iteration + 1)}")
-            model.save("./bestmodel.pickle")
+            if iteration % 300 == 0:
+                left = (total_num // batch_size - iteration)
+                t = (time.time() - curr_time) / 3600
+                predict = left * t / (iteration + 1)
+                print(f"iteration : {iteration} | current loss : {loss} | time spend : {time.time() - st} | time_left : {predict} hours left | total expect time : {(left + iteration) * t / (iteration + 1)}")
+                model.save("./bestmodel.pickle")
  
 def train_torch(model, criterion, optimizer, word_id, nsampler):
 
@@ -130,7 +130,7 @@ def main():
     criterion = BCELossWithSigmoid()
     nsampler = Sampler(count, power = 0.75, k = 5, skip = 5)
 
-    dev = 1
+    dev = 11
 
     for i in range(len(file_path) // dev):
         words = batch_words(file_path[i * dev : (i+1) * dev])

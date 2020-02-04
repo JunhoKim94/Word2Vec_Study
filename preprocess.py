@@ -10,7 +10,6 @@ class Sampler:
 
         self.vocab_size = len(count)
         self.count = np.array(count)
-        self.word_p = np.array(count)
         self.power = power
 
         self.k = k
@@ -19,9 +18,12 @@ class Sampler:
         self.word_p = self.count / np.sum(self.count)
         self.sub_word_p = 1 - (1e-5 / self.word_p) ** 0.5
         self.sub_word_p[self.sub_word_p < 0] = 0
+        #"UNK" token --> always exclude
+        self.sub_word_p[0] = 1
 
         #self.word_p /= np.sum(self.word_p)
         self.word_p = np.power(self.word_p, self.power)
+        self.word_p[0] = 0
         self.word_p = self.word_p / np.sum(self.word_p)
 
     def nega_train_token(self, word_id, word_index):
@@ -102,6 +104,7 @@ def recall_and_corpus(path, batch = 9):
 
         collect.update(word_token)
     
+    temp = collect.most_common()
     selected = collect.most_common(692 * 10**3)
     count = [["UNK", 1]]
     count.extend(selected)

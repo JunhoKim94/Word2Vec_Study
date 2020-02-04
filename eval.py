@@ -41,33 +41,32 @@ def cal_score(sample , semantic_words, syntatic_words, model, word2idx, idx2word
     
     for i,sort in enumerate([syn, sem]):
         test = np.zeros((sample, 300))
-        
+
         for j,query in enumerate(sort):
             if statement(query):
                 continue
             # 1 - 0 + 2 = 3
+            print(query)
             query_vec = W_in[word2idx[query[1]]] - W_in[word2idx[query[0]]] + W_in[word2idx[query[2]]]
             test[j,:] = query_vec
         
         #오름차순에 의해 정렬
-        similarity = cosine_similarity(W_in , test)
-        result = similarity.argsort()[:,-5:]
+        similarity = cosine_similarity(test, W_in)
+        result = similarity.argsort(axis = 1)[:,-5:]
 
         for idx, ans in zip(result, sort[:,3]):
+            print("answear : ", ans)
+            for j in idx:
+                print("candidate : ",idx2word[j])
             if statement([ans]):
                 continue
-            print(ans)
             if word2idx[ans] in idx:
                 score[i] += 1
     return score
 
         
 
-def evaluate(path, model, word2idx, idx2word):
-    with open("./bestmodel.pickle", 'rb') as f:
-        x = pickle.load(f)
-
-
-    model.params = x
-    for i in range(20,30):
-        model.query(idx2word[i], word2idx, idx2word, top = 15)
+def evaluate(model, word2idx, idx2word):
+    rand = np.random.choice(len(word2idx), 20)
+    for i in rand:
+        model.query(idx2word[i], word2idx, idx2word, top = 5)

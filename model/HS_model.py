@@ -70,12 +70,13 @@ class HS_skipgram:
 
         query_id = word2idx[word]
         query_vec = W_in[query_id]
+        query_vec = np.expand_dims(query_vec,0)
 
         #오름차순에 의해 정렬
         similarity = cosine_similarity(W_in , query_vec)
 
         #자기 자신 제외
-        result = similarity.argsort()[-top-1:-1]
+        result = similarity.argsort(axis = 0)[-top:]
 
         print(word)
 

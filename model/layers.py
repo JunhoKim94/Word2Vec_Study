@@ -1,8 +1,20 @@
 import numpy as np
-
+'''
 def sigmoid(x):
-    return 1 / (1 + np.exp(-x))    
+    
 
+    exp = np.array([i for i in range(1000)])
+    exp = exp / 500
+    exp -= 1
+    exp *= 6
+    
+    exp = np.exp(exp)
+
+    exp = exp / (1 + exp)
+    return exp(int(x + 6) * (1000 / 6 / 2))
+'''
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
 
 class BCELossWithSigmoid:
     def __init__(self):
