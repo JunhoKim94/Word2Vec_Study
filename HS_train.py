@@ -1,5 +1,5 @@
 import numpy as np
-from model.layers import Embedding, Sigmoid, Softmax, Linear, BCELossWithSigmoid
+from model.layers import *
 from model.HS_model import HS_skipgram
 from preprocess import *
 from optim.optimizer import SGD
@@ -66,6 +66,10 @@ for i in range(1,len(file_path) // dev):
             idx_path = lab[max_depth: max_depth + truth]
             
             y = model.forward(train, idx_path)
+
+            #if (y > MAX_EXP or y < -MAX_EXP):
+            #    continue
+
             loss = criterion.forward(y, target)
             dloss = criterion.backward()
             model.backward(dloss)

@@ -29,7 +29,8 @@ class HS_skipgram:
 
         self.hirearchy_vectors = self.HSvector.forward(idx_path)
 
-        out = np.sum(self.hirearchy_vectors * self.hidden, axis = 1, keepdims= True)
+        #out = np.sum(self.hirearchy_vectors * self.hidden, axis = 1, keepdims= True)
+        out = np.matmul(self.hirearchy_vectors, self.hidden.T)
 
         return out
 
@@ -38,7 +39,8 @@ class HS_skipgram:
         #truth length x hidden
         d_lin = np.matmul(dout , self.hidden)
         #d_h = np.matmul(dout.T, self.hirearchy_vectors)
-        d_h = np.sum(dout * self.hirearchy_vectors, axis = 0)
+        #d_h = np.sum(dout * self.hirearchy_vectors, axis = 0)
+        d_h = np.matmul(dout.T,self.hirearchy_vectors)
 
         self.HSvector.backward(d_lin, self.lr)
         self.Embedding.backward(d_h, self.lr)

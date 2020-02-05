@@ -39,32 +39,29 @@ def cal_score(semantic_words, syntatic_words, model, word2idx, idx2word):
     sem = semantic_words
     syn = syntatic_words
 
-    print(len(sem))
-
     W_in , _ = model.params
     score = [0,0]
-    
+    batch = 200
+    W_in /= np.linalg.norm(W_in, axis = 1, keepdims = True)
     for i,sort in enumerate([syn, sem]):
-        test = np.zeros((len(sort), 300))
 
-        for j,query in enumerate(sort):
+        j = 0
+        for query in tqdm(sort, desc = "scoring"):
             if statement(query):
                 continue
             # 1 - 0 + 2 = 3
             query_vec = W_in[word2idx[query[1]]] - W_in[word2idx[query[0]]] + W_in[word2idx[query[2]]]
-            test[j,:] = query_vec
-        
-        #오름차순에 의해 정렬
-        similarity = cosine_similarity(test, W_in)
-        result = similarity.argsort(axis = 1)[:,-5:]
-
-        for idx, ans in zip(result, sort[:,3]):
-            for j in idx:
-                print("candidate : ",idx2word[j])
-            if statement([ans]):
-                continue
-            if word2idx[ans] in idx:
+            query_vec = np.expand_dims(query_vec, 0)
+            #query_vec = np.linalg.norm(query_vec, axis = 1, keepdims = True)
+            #test[j,:] = query_vec
+            target = word2idx[query[3]]
+            j += 1
+            #오름차순에 의해 정렬
+            similarity = np.matmul(query_vec, W_in.T) #np.sum(query_vec * W_in, axis = 1)  #cosine_similarity(test, W_in)
+            result = similarity.argsort()[-5:-1]
+            if target in result:
                 score[i] += 1
+
     return score
 
         

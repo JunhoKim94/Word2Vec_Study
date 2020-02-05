@@ -44,7 +44,6 @@ def main():
     model = HS_skipgram(vocab_size = vocab_size, projection= embed_size, lr = learning_rate)
     #optimizer = optim.SGD(model.parameters(), lr = learning_rate)
     #criterion = torch.nn.BCEWithLogitsLoss()
-    criterion = BCELossWithSigmoid()
     #nsampler = Sampler(count, power = 0.75, k = 5, skip = 5)
 
     with open("./bestmodel.pickle", 'rb') as f:

@@ -1,20 +1,23 @@
 import numpy as np
-'''
+
+MAX_EXP = 7
+EXP_TABLE = 1000
+
+exp = np.array([i for i in range(EXP_TABLE)])
+exp = exp / EXP_TABLE / 2
+exp -= 1
+exp *= MAX_EXP
+
+exp = np.exp(exp)
+exp = exp / (1 + exp)
+
 def sigmoid(x):
-    
+    return exp[int(x + MAX_EXP) * (EXP_TABLE / MAX_EXP / 2)]
 
-    exp = np.array([i for i in range(1000)])
-    exp = exp / 500
-    exp -= 1
-    exp *= 6
-    
-    exp = np.exp(exp)
-
-    exp = exp / (1 + exp)
-    return exp(int(x + 6) * (1000 / 6 / 2))
 '''
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
+'''
 
 class BCELossWithSigmoid:
     def __init__(self):
@@ -32,7 +35,7 @@ class BCELossWithSigmoid:
 
         number = target.shape[0]
 
-        self.loss = -self.target * np.log(self.y_pred + self.eps) - (1 - self.target) * np.log(1 - self.y_pred + self.eps)
+        self.loss = -1 * self.target * np.log(self.y_pred + self.eps) - (1 - self.target) * np.log(1 - self.y_pred + self.eps)
 
         self.loss = np.sum(self.loss) / number
 
