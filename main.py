@@ -53,18 +53,13 @@ def main():
 
     model.params = x
     sem, syn = test_words()
-    #a = cal_score(10, sem,syn, model, word2idx, idx2word)
-    evaluate(model, word2idx, idx2word)
+    a = cal_score(sem,syn, model, word2idx, idx2word)
+    #evaluate(model, word2idx, idx2word)
     print(a)
 if __name__ == "__main__":
-    #main()
-    exp = np.array([i for i in range(1000)])
-    exp = exp / 500
-    exp -= 1
-    exp *= 6
+    main()
 
-    exp = exp / (1 + exp)
 
-    a = np.ones(shape = (10,5))
-    print(exp[a])
-    print(exp[a].shape)
+    #a = np.ones(shape = (10,5))
+    #print(exp[a])
+    #print(exp[a].shape)

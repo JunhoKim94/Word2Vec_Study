@@ -25,28 +25,32 @@ def test_words(path = "./data/questions-words.txt"):
 
     return np.array(semantic_words), np.array(syntatic_words)
 
-def cal_score(sample , semantic_words, syntatic_words, model, word2idx, idx2word):
+def cal_score(semantic_words, syntatic_words, model, word2idx, idx2word):
     
     def statement(query):
         for word in query:
             if word not in word2idx:
                 return True
         return False
-
+    '''
     sem = semantic_words[np.random.choice(len(semantic_words), sample)]
     syn = syntatic_words[np.random.choice(len(syntatic_words), sample)]
+    '''
+    sem = semantic_words
+    syn = syntatic_words
+
+    print(len(sem))
 
     W_in , _ = model.params
     score = [0,0]
     
     for i,sort in enumerate([syn, sem]):
-        test = np.zeros((sample, 300))
+        test = np.zeros((len(sort), 300))
 
         for j,query in enumerate(sort):
             if statement(query):
                 continue
             # 1 - 0 + 2 = 3
-            print(query)
             query_vec = W_in[word2idx[query[1]]] - W_in[word2idx[query[0]]] + W_in[word2idx[query[2]]]
             test[j,:] = query_vec
         
@@ -55,7 +59,6 @@ def cal_score(sample , semantic_words, syntatic_words, model, word2idx, idx2word
         result = similarity.argsort(axis = 1)[:,-5:]
 
         for idx, ans in zip(result, sort[:,3]):
-            print("answear : ", ans)
             for j in idx:
                 print("candidate : ",idx2word[j])
             if statement([ans]):
@@ -67,6 +70,6 @@ def cal_score(sample , semantic_words, syntatic_words, model, word2idx, idx2word
         
 
 def evaluate(model, word2idx, idx2word):
-    rand = np.random.choice(len(word2idx), 20)
+    rand = np.random.choice(len(word2idx)//500, 20)
     for i in rand:
         model.query(idx2word[i], word2idx, idx2word, top = 5)
