@@ -35,32 +35,34 @@ criterion = BCELossWithSigmoid()
 #optimizer = SGD(lr = 0.0025)
 nsampler = Sampler(count, 0.75)
 
+'''
 with open("./bestmodel.pickle", 'rb') as f:
     x = pickle.load(f)
 
-
 model.params = x
+'''
 
-dev = 11
+dev = 1
 st = time.time()
 for i in range(1,len(file_path) // dev):
     words = batch_words(file_path[i * dev : (i+1) * dev])
     total_num = len(words)
     word_id = word_id_gen(words, word2idx, count)
 
+    iteration = 0
     cur_t = time.time()
-    for iteration in range(total_num // batch_size):
-
-        idx = np.random.choice(total_num - sample_size, batch_size)
-        judge = nsampler.sub_sampling(word_id[idx])
-        idx = idx[judge]
-
-        train_data, label = train_token_gen(word_id, sample_size, idx)
+    for line in word_id:
+        iteration += 1
+        train_words = nsampler.sub_sampling(line)
+    
+        train_data = train_token_gen(word_id, sample_size)
+        label = train_data[1,:]
         label = node[label]
         #label = batch_size x (2 * max_depth + 1)
 
         l = 0
         for train,lab in zip(train_data,label):
+            print(train, lab)
             truth = lab[-1]
             target = np.expand_dims(lab[:truth],1)
             idx_path = lab[max_depth: max_depth + truth]

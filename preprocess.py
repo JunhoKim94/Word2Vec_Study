@@ -16,8 +16,7 @@ class Sampler:
         self.skip = skip * 2
 
         self.word_p = self.count / np.sum(self.count)
-        self.sub_word_p = 1 - (1e-5 / self.word_p) ** 0.5
-        self.sub_word_p[self.sub_word_p < 0] = 0
+        self.sub_word_p = (1e-5 / self.word_p) ** 0.5
         #"UNK" token --> always exclude
         self.sub_word_p[0] = 1
 
@@ -54,14 +53,13 @@ class Sampler:
         word_idx = 1 x batch --> [i1, i2, i3, i1, i1, i2 ...]
         out --> [T, F, F, T, F ...]
         '''
-        def subtract(probablity):
-            return np.random.choice([False,True] , p = [probablity, 1 - probablity])
-        iswordtrain = []
-        for idx in word_idx:
-            probablity = self.sub_word_p[idx]
-            iswordtrain.append(subtract(probablity))
+        word_idx = np.array(word_idx)
 
-        return iswordtrain
+        random = np.random.random(len(word_idx))
+
+        word_idx = word_idx[word_idx > random]
+
+        return word_idx
 
 def batch_words(paths):
     words = []
@@ -77,7 +75,7 @@ def recall_word(path):
     with open(path, 'r', encoding = "UTF8") as f:
         lines = f.readlines()
         for line in lines:
-            word += line.split()
+            word.append(line.split())
 
     return word
 
@@ -146,41 +144,35 @@ def corpus_making(words, most_common = 50000):
 def word_id_gen(words, word2idx, count):
 
     word_id = []
-    for word in tqdm(words, desc = "Changing Word to Index"):
-
-        if word not in word2idx:
-            word_id += [word2idx["UNK"]]
-            count[0] += 1
-        else:
-            word_id += [word2idx[word]]
-
-    word_id = np.array(word_id)
+    for line in tqdm(words, desc = "Changing Word to Index"):
+        line_id = []
+        for word in line:
+            if word not in word2idx:
+                line_id += [word2idx["UNK"]]
+                count[0] += 1
+            else:
+                line_id += [word2idx[word]]
+        word_id.append(line_id)
 
     return word_id
 
-def train_token_gen(word_id, skip_gram, word_index):
+def train_token_gen(word_id, skip_gram):
     
     #word_index(중심단어)를 제외한 배열 생성
-    batch_size = len(word_index)
-    skip_size = skip_gram * 2
-    
-    train_data = np.ndarray(shape = (batch_size * skip_size, 1), dtype = np.int32)
-    label = np.ndarray(shape = (batch_size * skip_size), dtype = np.int32)
-    
-    
-    for i, index in enumerate(word_index):
+    train = []
 
-        seed = list(range(index - skip_gram , index + skip_gram + 1))
-        seed.pop(skip_gram)
-
-        train_data[i * skip_size : (i+1) * skip_size, 0] = word_id[index]
-        label[i * skip_size : (i+1) * skip_size] = word_id[seed]
-    
+    for idx in range(len(word_id)):
+        for i in range(-skip_gram , skip_gram + 1):
+            a = idx + i
+            if (a < 0 | a >= len(word_id) | a == idx):
+                continue
+            
+            train.append([idx, a])
     #seed = list(range(word_index - skip_gram , word_index + skip_gram + 1))
     #seed.pop(skip_gram)
     #return word_id[word_index], word_id[seed]
-
-    return train_data, label
+    train = np.array(train)
+    return train
 
 def Huffman_Tree(count):
     vocab_size = len(count)

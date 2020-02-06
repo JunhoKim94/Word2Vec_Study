@@ -12,7 +12,8 @@ exp = np.exp(exp)
 exp = exp / (1 + exp)
 
 def sigmoid(x):
-    return exp[int(x + MAX_EXP) * (EXP_TABLE / MAX_EXP / 2)]
+    print(int((x + MAX_EXP) * (EXP_TABLE / MAX_EXP / 2)))
+    return exp[int((x + MAX_EXP) * (EXP_TABLE / MAX_EXP / 2))]
 
 '''
 def sigmoid(x):
