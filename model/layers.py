@@ -76,7 +76,7 @@ class Embedding:
 
     def _zero_grad(self):
         dW, = self.grads
-        dW[...] = 0
+        #dW[...] = 0
 
 
 class Linear:
