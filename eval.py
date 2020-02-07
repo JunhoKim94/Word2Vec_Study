@@ -58,8 +58,9 @@ def cal_score(semantic_words, syntatic_words, model, word2idx, idx2word):
             j += 1
             #오름차순에 의해 정렬
             similarity = np.matmul(query_vec, W_in.T) #np.sum(query_vec * W_in, axis = 1)  #cosine_similarity(test, W_in)
-            result = similarity.argsort()[-5:-1]
+            result = similarity.argsort()[:,-5:]
             if target in result:
+                print(1, target , result)
                 score[i] += 1
 
     return score

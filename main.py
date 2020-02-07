@@ -52,6 +52,7 @@ def main():
 
     model.params = x
     sem, syn = test_words()
+    print(sem, syn)
     a = cal_score(sem,syn, model, word2idx, idx2word)
     #evaluate(model, word2idx, idx2word)
     print(a)
