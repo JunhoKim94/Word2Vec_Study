@@ -54,14 +54,13 @@ class Sampler:
         word_idx = 1 x batch --> [i1, i2, i3, i1, i1, i2 ...]
         out --> [T, F, F, T, F ...]
         '''
-        def subtract(probablity):
-            return np.random.choice([False,True] , p = [probablity, 1 - probablity])
-        iswordtrain = []
-        for idx in word_idx:
-            probablity = self.sub_word_p[idx]
-            iswordtrain.append(subtract(probablity))
+        word_idx = np.array(word_idx)
 
-        return iswordtrain
+        random = np.random.random(len(word_idx))
+
+        word_idx = word_idx[word_idx > random]
+
+        return word_idx
 
 def batch_words(paths):
     words = []

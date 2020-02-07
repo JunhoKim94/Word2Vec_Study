@@ -1,5 +1,6 @@
 import numpy as np
 
+'''
 MAX_EXP = 7
 EXP_TABLE = 1000
 
@@ -17,7 +18,6 @@ def sigmoid(x):
 '''
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
-'''
 
 class BCELossWithSigmoid:
     def __init__(self):
